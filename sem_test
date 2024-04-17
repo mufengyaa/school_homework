@@ -1,0 +1,117 @@
+#include <iostream>
+#include <thread>
+#include <vector>
+#include <mutex>
+#include <condition_variable>
+#include <semaphore.h>
+#include <random>
+
+const int MaxItems = 5;
+
+class CP
+{
+private:
+    std::vector<std::string> buffer;
+    std::mutex mtx;
+    sem_t empty;
+    sem_t full;
+
+public:
+    CP()
+    {
+        sem_init(&empty, 0, MaxItems);
+        sem_init(&full, 0, 0);
+    }
+
+    ~CP()
+    {
+        sem_destroy(&empty);
+        sem_destroy(&full);
+    }
+
+    void produceApple()
+    {
+        std::random_device rd;
+        std::mt19937 gen(rd());
+        std::uniform_int_distribution<> dis(300, 800);
+
+        for (int i = 0; i < 10; ++i)
+        {
+            sem_wait(&empty);
+            mtx.lock();
+            buffer.push_back("Apple");
+            std::cout << "father put an apple,plate is " << buffer.size() << std::endl;
+            mtx.unlock();
+            sem_post(&full);
+            std::this_thread::sleep_for(std::chrono::milliseconds(dis(gen))); // 休眠随机时间,模拟处理的过程
+        }
+        std::cout << "father put over" << std::endl;
+    }
+
+    void produceOrange()
+    {
+        std::random_device rd;
+        std::mt19937 gen(rd());
+        std::uniform_int_distribution<> dis(300, 800);
+
+        for (int i = 0; i < 15; ++i)
+        {
+            sem_wait(&empty);
+            mtx.lock();
+            buffer.push_back("Orange");
+            std::cout << "mother put an orange,plate is " << buffer.size() << std::endl;
+            mtx.unlock();
+            sem_post(&full);
+            std::this_thread::sleep_for(std::chrono::milliseconds(dis(gen)));
+        }
+        std::cout << "mother put over" << std::endl;
+    }
+
+    void consume(const std::string &id, const std::string &target)
+    {
+        std::random_device rd;
+        std::mt19937 gen(rd());
+        std::uniform_int_distribution<> dis(100, 500);
+        std::string item;
+        while (true)
+        {
+            mtx.lock();
+            if (!buffer.empty())
+            {
+                item = buffer.back();
+            }
+            mtx.unlock();
+            if (item == target)
+            {
+                sem_wait(&full);
+                buffer.pop_back();
+                std::cout << id << " ate a " << target << ", plate is " << buffer.size() << std::endl;
+                sem_post(&empty);
+            }
+
+            std::this_thread::sleep_for(std::chrono::milliseconds(dis(gen)));
+        }
+    }
+};
+
+int main()
+{
+    CP cp;
+
+    std::thread appleProducers([&cp]()
+                               { cp.produceApple(); });
+    std::thread orangeProducers([&cp]()
+                                { cp.produceOrange(); });
+
+    std::thread appleConsumers([&cp]()
+                               { cp.consume("daughter", "Apple"); });
+    std::thread orangeConsumers([&cp]()
+                                { cp.consume("daughter", "Orange"); });
+
+    appleProducers.join();
+    orangeProducers.join();
+    appleConsumers.join();
+    orangeConsumers.join();
+
+    return 0;
+}

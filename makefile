@@ -14,6 +14,10 @@ phil: phil.cpp
 timeSliceScheduling: timeSliceScheduling.cpp
 	g++ -o $@ $^ -std=c++11 -lpthread
 
+.PHONY: bank
+bank: bank.cpp
+	g++ -o $@ $^ -std=c++11 -lpthread
+
 .PHONY: clean
 clean:
-	rm -f cp_test timeSliceScheduling phil rw
+	rm -f cp_test timeSliceScheduling phil rw bank
